@@ -12,4 +12,4 @@ The disease chytridiomycosis, caused by the pathogenic chytrid fungus, Batrachoc
 ## Repository Directory
 ### [DataAnalysis](https://github.com/Grace89/Bd-IL/tree/master/DataAnalysis): Contains code for modeling, analysis, and results
 ### [RawData](https://github.com/Grace89/Bd-IL/tree/master/RawData): Contains CSV file of raw data
-### [Final_paper_for_publication_accepted](): Contains all material published online
+### [FinalPaper](): Contains all material published online
