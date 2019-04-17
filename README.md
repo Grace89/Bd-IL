@@ -1,6 +1,6 @@
 ## NOVEL ANTI-FUNGAL THERAPEUTIC 1-BUTYL-1-METHYLPYRROLIDINIUM BIS(TRIFLUOROMETHYLSULFONYL)IMIDE AGAINST BATRACHOCHYTRIUM DENDROBATIDIS
 
-### [GRAZIELLA V. DIRENZO](https://grazielladirenzo.weebly.com), [RENWEI CHEN](https://labs.eemb.ucsb.edu/briggs/cherie/members/chen), [MARY TOOTHMAN](https://labs.eemb.ucsb.edu/briggs/cherie/members/toothman), [ABIGAIL MILLER](https://bcmb.bs.jhmi.edu/people/students/ariel-gershman), [SAMIR MITRAGOTRI](https://www.seas.harvard.edu/directory/mitragotri), & [CHERYL J. BRIGGS](https://www.eemb.ucsb.edu/people/faculty/briggs)
+### [GRAZIELLA V. DIRENZO](https://grazielladirenzo.weebly.com), [RENWEI CHEN](https://labs.eemb.ucsb.edu/briggs/cherie/members/chen), [MARY TOOTHMAN](https://labs.eemb.ucsb.edu/briggs/cherie/members/toothman), [ABIGAIL MILLER], [ARIEL GERSHMAN](https://bcmb.bs.jhmi.edu/people/students/ariel-gershman), [SAMIR MITRAGOTRI](https://www.seas.harvard.edu/directory/mitragotri), & [CHERYL J. BRIGGS](https://www.eemb.ucsb.edu/people/faculty/briggs)
 ### In review
 
 ### Please contact the first author for questions about the code: Graziella DiRenzo (grace.direnzo@gmail.com)
