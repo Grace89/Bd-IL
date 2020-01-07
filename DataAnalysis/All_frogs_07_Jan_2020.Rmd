@@ -1,0 +1,574 @@
+---
+title: "Bd-IL analysis"
+author: "G. V. DiRenzo"
+date: "9/11/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## D. tinc BMP-NTf2 survival
+
+```{r}
+# Read in the data
+df <- read.csv("/Users/Cici/Dropbox/BDIL/Code/Dose-dependent.csv")
+
+# Look at data structure
+str(df)
+
+# sample sizes
+library(plyr)
+ddply(.data = df, .variables = "Treatment_uL", .fun = summarize,
+      sample= length(Treatment_uL))
+
+# sample size
+nrow(df)
+
+# Logistic regression to determine if treatment (i.e., amount of BMP applied) affected survival
+summary(glm(Census ~ Treatment_uL, data = df))
+
+# Min dose
+min(df$uL_g)
+# Max dose
+max(df$uL_g)
+# Mean and standard error of dose
+mean(df$uL_g)
+sd(df$uL_g)/sqrt(length(df$uL_g))
+
+# Min weight
+min(df$Weight_g)
+# Max weight
+max(df$Weight_g)
+# Mean and standard error of weight
+mean(df$Weight_g)
+sd(df$Weight_g)/sqrt(length(df$Weight_g))
+
+# Look at the ones that died
+df[df$Census == 1,]
+```
+
+## D. tinc Bd infection intensity over time by treatment
+
+```{r echo = FALSE, warning= FALSE}
+# Read in code
+dat <- read.csv("/Users/Cici/Dropbox/BDIL/Data/D_tinc/BD-DT2.csv")
+
+dat2 <- read.csv("/Users/Cici/Dropbox/BDIL/Data/D_tinc/FINAL TREATMENTS/treatments_long_format.csv")
+
+dat3 <- merge(dat, dat2, by = "ID_Number")
+
+dat3 <- dat3[is.na(dat3$Treatment) == FALSE,]
+
+# Remove > 50 days
+dat3 <- dat3[dat3$Exp_Day < 51,]
+
+# Create empty vector to add in sample size to names of the treatments
+Sample_size <-numeric(nrow(dat3))
+
+# Replace the name of the treatment with name + sample size
+Sample_size[grep("BMP", dat3$Treatment)] <- "BMP [n = 23]"
+Sample_size[grep("Control", dat3$Treatment)] <- "Control [n = 12]"
+Sample_size[grep("ITCZ", dat3$Treatment)] <- "ITCZ [n = 12]"
+
+# Add the sample size to the data frame
+dat3$Sample_size <- Sample_size
+
+###
+library(plyr)
+# Estimate Bd infection intensity on different experimental days by treatment group
+infeInte <- ddply(.data = dat3, .variables = c("Treatment", "Exp_Day"), .fun = summarize,
+      mean = mean(Bd, na.rm = TRUE),
+      se = sd(Bd, na.rm = TRUE)/sqrt(length(Bd)))
+infeInte[,2] <- infeInte[,2]-26
+infeInte
+#
+str(dat3)
+
+plot(log10(dat3[dat3$Exp_Day == 26,]$Bd+1))
+
+library(ggplot2)
+ggplot(dat3,aes(y = log10(Bd+ 1), x = (Exp_Day-26))) +
+  scale_colour_manual(name = "Treatment & \nSample Size", values = c("skyblue", "black","goldenrod"))+
+  xlim(0, 26)+
+  ylab(expression(paste(log[10], "(", italic(Bd), " load + 1)", sep = ""))) +
+  geom_point(aes(color= Sample_size), position = position_jitterdodge()) + 
+  stat_smooth(aes(color = Sample_size, fill = Sample_size), se = TRUE, method = "lm") + 
+  scale_fill_manual(name = "Treatment & \nSample Size", values = c("skyblue", "black","goldenrod"))+
+  theme_bw() + 
+  geom_vline(xintercept = 6, lty = 6) + 
+  annotate("text", label = "BMP treat", x = 6, y = 6.3, size = 3)+
+  geom_vline(xintercept = 7:15, lty = 3) + 
+  annotate("text", label = "ITCZ treat (10 days)", x = 12, y = 6.3, size = 3)+  
+    theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), 
+        axis.text.y=element_text(size=9),
+        axis.title.y=element_text(size=9),
+        axis.text.x=element_text(size=9),
+        axis.title.x=element_text(size=9),
+        legend.title = element_text(size=7),
+        legend.text = element_text(size=7),
+        legend.direction = "vertical") + xlab("Experimental day")
+
+#setwd("/Users/Cici/Dropbox/BDIL/Figures")
+#ggsave("D_tinc_pathogen_load.pdf", height = 6, width = 9)
+```
+
+```{r}
+# Determine the dose of BMP applied to frogs
+
+BMP <- dat3[dat3$Treatment == "BMP" & dat3$Exp_Day == 26,]
+
+df <- read.csv("/Users/Cici/Dropbox/BdIL/Data/D_tinc/Arrival_day_measurements.csv")
+df <- df[df$Month == 12 & df$Day == 5 & df$Year == 2017,]
+BMP_dose <- df[match(BMP$ID_Number, df$ID_Number),]
+
+# Each frog was given 60 uL, regardless of size
+# Add column with dose
+BMP_dose$dose <- 60/BMP_dose$Weight_g
+# Mean dose, se, and min and max
+mean(BMP_dose$dose)
+sd(BMP_dose$dose)/sqrt(length(BMP_dose$dose))
+min(BMP_dose$dose)
+max(BMP_dose$dose)
+
+```
+
+## D. tinc Individual infection trajectories
+
+
+```{r echo=FALSE, warning= FALSE}
+dat4 <- data.frame(Treatment = dat3$Treatment, ID_Number = dat3$ID_Number)
+dat4 <- droplevels(dat4)
+
+dat4$combo <- paste(dat4$Treatment, dat4$ID_Number, sep = "_")
+
+uniqueID <- numeric(nrow(dat4))
+
+for(i in dat4$Treatment){
+    treatment <- grep(i, dat4$Treatment)
+    treatment_IDs <- unique(dat4[treatment,]$ID_Number)
+    #treatment_IDs <- droplevels(treatment_IDs)
+
+    for(j in 1:length(treatment_IDs)){
+      values <-  which(dat4$ID_Number %in% treatment_IDs[j])
+      uniqueID[values] <- j
+    }
+}
+
+dat4$uniqueID <- uniqueID  
+
+dat5 <- merge(dat3, dat4, by = "ID_Number")
+
+ggplot(dat5, aes(y = log10(Bd + 1), x = (Exp_Day-26))) +
+    xlim(c(0, 26))+
+  ylab(expression(paste(log[10], "(", italic(Bd), " load + 1)", sep = ""))) +
+  geom_point(aes(color= Sample_size)) + 
+  facet_grid(uniqueID ~ Sample_size)+
+  geom_line(aes(y = log10(Bd + 1), x = (Exp_Day-26)))+
+  theme_bw() + 
+  scale_colour_manual(name = "Treatment & \nSample Size", values = c("skyblue", "black","goldenrod"))+
+    theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), 
+        axis.text.y=element_text(size=9),
+        axis.title.y=element_text(size=9),
+        axis.text.x=element_text(size=9),
+        axis.title.x=element_text(size=9),
+        legend.position = "none") + xlab("Experimental day")
+
+#setwd("/Users/Cici/Dropbox/BDIL/Figures")
+#ggsave("D_tinc_pathogen_load_IND.pdf", height = 6, width = 9)
+```
+
+
+
+# Statistical analyses
+
+# IV.I Linear mixed effects models
+We fit a linear mixed effects model to the data where the intercept and the slope differ, and individuals are treated as replicates:
+The number of BMP treated animals that cleared their infection-
+```{r echo = FALSE}
+dat3$Exp_day <- dat3$Exp_Day - 26
+dat <- dat3
+BMP <- dat[dat$Treatment == "BMP" & dat$Exp_day == 24,]
+length(which(BMP$Bd== 0))
+```
+
+# Model 1
+```{r, echo = FALSE, warnings = FALSE}
+library(nlme)
+
+dat3 <- dat3[dat3$Exp_day < 28,]
+dat3$stand_day <- (dat3$Exp_day - mean(dat3$Exp_day))/sd(dat3$Exp_day)
+dat3 <- dat3[is.na(dat3$Bd) == FALSE,]
+
+dat3$ID_Number <- as.factor(dat3$ID_Number)
+# statistical analysis
+mod.lme <- lme(log10(Bd + 1) ~ Treatment*stand_day, random= ~ 1|ID_Number, data=dat3)
+summary(mod.lme)
+
+dat3$pred <- predict(mod.lme, dat3, type = "response")
+
+library(plyr)
+col2 <- ddply(.data = dat3, .variable = c("ID_Number", "Treatment"),
+      .fun = summarize,
+      mean = mean(Bd))
+col2$col <- NA
+
+for(i in 1:nrow(col2)){
+  if(col2$Treatment[i] == "Control") {col2$col[i] <- "black"}
+  if(col2$Treatment[i] == "BMP") {col2$col[i] <- "skyblue"}
+  if(col2$Treatment[i] == "ITCZ") {col2$col[i] <- "goldenrod"}
+}
+
+d_tinc <- ggplot(dat3, aes(y = log10(Bd+1), x = (Exp_day))) +
+  ylab(expression(paste(log[10], "(", italic(Bd), "load + 1)", sep = ""))) +
+  geom_point(aes(color= ID_Number), position = position_jitter()) + 
+    geom_vline(xintercept = 0, lty = 6) + 
+  annotate("text", label = "BMP treat", x = 0, y = 6.3, size = 3)+
+  geom_vline(xintercept = 1:9, lty = 3) + 
+  annotate("text", label = "ITCZ treat (10 days)", x = 5, y = 6.3, size = 3)+  
+  geom_line(aes(y = (pred), x = (Exp_day), color = ID_Number))+
+  scale_color_manual(values = col2$col)+
+  theme_bw()+
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), 
+        axis.text.y=element_text(size=12),
+        axis.title.y=element_text(size=12),
+        axis.text.x=element_text(size=12),
+        axis.title.x=element_text(size=12),
+        legend.title = element_text(size=12),
+        legend.text = element_text(size=12),
+        legend.direction = "vertical",
+        legend.position = "none") + 
+  xlab("Experimental day") +
+  ggtitle(expression(italic("Dendrobates tinctorius")))
+d_tinc
+```
+
+
+# Post-hoc comparison of the slopes of each treatment
+```{r, warning = FALSE, echo = FALSE}
+library(emmeans)
+lst = emmeans::lstrends(mod.lme, ~Treatment, var= "stand_day")
+slopes <- CLD(lst)
+slopes
+```
+
+# Trying to improve the fit
+
+We tried to include various correlation structure, but that didn't seem to improve the fit.
+
+## Model 2
+```{r echo = FALSE}
+mod.lme2 <- lme(log10(Bd + 1) ~ Treatment*stand_day, random= ~ 1|ID_Number,correlation=corARMA(0.2, form=~stand_day|ID_Number, p=1, q=0), data=dat3)
+summary(mod.lme2)
+```
+
+# Post-hoc comparison of the slopes of each treatment
+```{r, warning = FALSE, echo = FALSE}
+library(emmeans)
+lst = emmeans::lstrends(mod.lme2, ~Treatment, var= "stand_day")
+slopes <- CLD(lst)
+slopes
+```
+
+## Model 3
+```{r echo = FALSE}
+mod.lme3 <- lme(log10(Bd + 1) ~ Treatment*stand_day, random= ~ 1|ID_Number,correlation=corAR1(0.2,form=~stand_day|ID_Number), data=dat3)
+summary(mod.lme3)
+```
+
+# Post-hoc comparison of the slopes of each treatment
+```{r, warning = FALSE, echo = FALSE}
+library(emmeans)
+lst = emmeans::lstrends(mod.lme3, ~Treatment, var= "stand_day")
+slopes <- CLD(lst)
+slopes
+```
+
+
+# P. regilla data
+
+This plot shows the relationship between experimental day and *Bd* load on the log scale across treatments in one plot.
+
+```{r echo = FALSE, cache=FALSE, message=FALSE, warning= FALSE}
+#read in data 
+dat<-read.csv("~/Dropbox/BDIL/Data/P_regilla/BdIL_all_9_19.csv")
+
+# Create empty vector to add in sample size to names of the treatments
+Sample_size <-numeric(nrow(dat))
+
+# Replace the name of the treatment with name + sample size
+Sample_size[grep("BMP", dat$Treatment)] <- "BMP [n = 8]"
+Sample_size[grep("Control", dat$Treatment)] <- "Control [n = 5]"
+Sample_size[grep("ITCZ", dat$Treatment)] <- "ITCZ [n = 7]"
+
+# Add the sample size to the data frame
+dat$Sample_size <- Sample_size
+
+# Multiply each Bd column by 80 (the dilution factor)
+dat$Bd_load_1 <- dat$Quantity_1 * 80
+dat$Bd_load_2 <- dat$Quantity_2 * 80
+dat$Bd_load_3 <- dat$Quantity_3 * 80
+
+# Create a 2-D matrix with the 2 Quantites
+Bd_load <- cbind(dat$Bd_load_1, dat$Bd_load_2, dat$Bd_load_3)
+
+# Estimate the means for Bd load over the 2 runs
+dat$Bd_load <- rowMeans(Bd_load, na.rm = TRUE)
+
+# There are 2 phases of the experiment
+	# 1st BMP treatment
+	# 2nd BMP treatment
+phase <- numeric(nrow(dat))
+
+# If Exp_day == 6, 9, or 14 = 1st phase
+# Everything else is 2nd phase.
+phase <- ifelse(dat$Exp_day == "6" |dat$Exp_day == "9" | dat$Exp_day == "14" , 1, 2)
+
+library(ggplot2)
+
+ggplot(dat,
+               aes(y = log10(Bd_load + 1), x = (Exp_day-6))) +
+  ylab(expression(paste(log[10], "(", italic(Bd), "load + 1)", sep = ""))) +
+  geom_point(aes(color= Sample_size), position = position_jitterdodge()) + 
+  stat_smooth(aes(color = Sample_size, fill = Sample_size), se = TRUE, method = "lm") + 
+  theme_bw() + 
+  geom_vline(xintercept = 0, lty = 6) + annotate("text", label = "BMP treat", x = 0, y = 3, size = 3)+
+  geom_vline(xintercept = 1:6, lty = 3) + annotate("text", label = "ITCZ treat (7 days)", x = 3, y = 3, size = 3)+  
+  geom_vline(xintercept = 6, lty = 6) + annotate("text", label = "BMP treat", x = 6, y = 3, size = 3)+
+  scale_colour_manual(name = "Treatment & \nSample Size", values = c("skyblue", "black","goldenrod"))+
+   scale_fill_manual(name = "Treatment & \nSample Size", values = c("skyblue", "black","goldenrod"))+
+    theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), 
+        axis.text.y=element_text(size=9),
+        axis.title.y=element_text(size=9),
+        axis.text.x=element_text(size=9),
+        axis.title.x=element_text(size=9),
+        legend.title = element_text(size=7),
+        legend.text = element_text(size=7),
+        legend.direction = "vertical") + xlab("Experimental day")
+
+#setwd("/Users/Cici/Dropbox/BDIL/Figures")
+#ggsave("P_reg_pathogen_load.pdf", height = 6, width = 9)
+```
+
+# P. regilla Individual plot
+This plot shows individual infection histories.
+```{r echo = FALSE, cache=FALSE, message=FALSE, warning= FALSE, fig.align= "center", fig.height = 4.5, fig.width = 8}
+
+dat2 <- data.frame(Treatment = dat$Treatment, Frog_ID = dat$Frog_ID)
+
+dat2$combo <- paste(dat2$Treatment, dat2$Frog_ID, sep = "_")
+
+uniqueID <- numeric(nrow(dat2))
+
+for(i in dat2$Treatment){
+    treatment <- grep(i, dat2$Treatment)
+    treatment_IDs <- unique(dat2[treatment,]$Frog_ID)
+    treatment_IDs <- droplevels(treatment_IDs)
+
+    for(j in 1:length(treatment_IDs)){
+      values <-  which(dat2$Frog_ID %in% treatment_IDs[j])
+      uniqueID[values] <- j
+    }
+}
+
+dat$uniqueID <- uniqueID  
+
+ggplot(dat, aes(y = log10(Bd_load + 1), x = (Exp_day-6))) +
+  ylab(expression(paste(log[10], "(", italic(Bd), "load + 1)", sep = ""))) +
+  geom_point(aes(color= Sample_size)) + 
+  facet_grid(uniqueID ~ Sample_size)+
+  geom_line(aes(y = log10(Bd_load + 1), x = (Exp_day-6)))+
+  theme_bw() + 
+  scale_colour_manual(name = "Treatment & \nSample Size", values = c("skyblue", "black","goldenrod"))+
+    theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), 
+        axis.text.y=element_text(size=9),
+        axis.title.y=element_text(size=9),
+        axis.text.x=element_text(size=9),
+        axis.title.x=element_text(size=9),
+        legend.position = "none") + xlab("Experimental day")
+#setwd("/Users/Cici/Dropbox/BDIL/Figures")
+#ggsave("P_reg_pathogen_load_IND.pdf", height = 6, width = 9)
+```
+
+# P. regilla Summary stats of changes in Bd load over time
+The number of BMP treated animals that cleared their infection-
+Note that you have to subtract 6 days from the experimental days to match the values in the manuscript
+```{r echo = FALSE}
+BMP <- dat[dat$Treatment == "BMP" & dat$Exp_day == 22,]
+length(which(BMP$Bd_load== 0))/nrow(BMP)
+
+```
+
+```{r}
+ddply(.data = dat, .variables = c("Treatment", "Exp_day"), .fun = summarize,
+      sample = length(Treatment),
+      mean = mean(Bd_load, na.rm = TRUE),
+      se = sd(Bd_load, na.rm = TRUE)/sqrt(length(Bd_load)))
+
+```
+
+```{r}
+Control <- dat[dat$Treatment == "Control" & dat$Exp_day == 22,]
+length(which(Control$Bd_load== 0))/nrow(Control)
+```
+
+# P. regilla Statistical analyses
+
+# Linear mixed effects models
+We fit a linear mixed effects model to the data where the intercept and the slope differ, and individuals are treated as replicates:
+
+# Model 1
+```{r, echo = FALSE, warnings = FALSE}
+library(nlme)
+library(lme4)
+dat$stand_day <- (dat$Exp_day - mean(dat$Exp_day))/sd(dat$Exp_day)
+
+# statistical analysis
+mod.lme <- lme(log10(Bd_load + 1) ~ Treatment*stand_day, random = ~1|Frog_ID, data=dat)
+summary(mod.lme)
+
+library(plyr)
+col <- ddply(.data = dat, .variable = c("Frog_ID", "Treatment"),
+      .fun = summarize,
+      mean = mean(Bd_load))
+col$col <- NA
+
+for(i in 1:nrow(col)){
+  if(col$Treatment[i] == "Control") {col$col[i] <- "black"}
+  if(col$Treatment[i] == "BMP") {col$col[i] <- "skyblue"}
+  if(col$Treatment[i] == "ITCZ") {col$col[i] <- "goldenrod"}
+}
+
+dat2 <- data.frame(stand_day = rep(seq(from = 0, to = 16), times = 3),
+                   Treatment = rep(levels(dat$Treatment), each = 17))
+
+dat$pred <- predict(mod.lme, dat, type = "response")
+
+#BMP = "skyblue"
+#control = "black"
+#ITCZ = "goldenrod"
+
+p_reg <- ggplot(dat, aes(y = log10(Bd_load+1), x = (Exp_day-6))) +
+  ylab(expression(paste(log[10], "(", italic(Bd), "load + 1)", sep = ""))) +
+  geom_point(aes(color= Frog_ID), position = position_jitter()) + 
+  geom_line(aes(y = (pred), x = Exp_day-6, color = Frog_ID))+
+  scale_color_manual(values = col$col)+
+  theme_bw()+
+  geom_vline(xintercept = 0, lty = 6) + 
+  annotate("text", label = "BMP treat", x = 0, y = 3.75, size = 3)+
+  geom_vline(xintercept = 1:6, lty = 3) + 
+  annotate("text", label = "ITCZ treat (7 days)", x = 3, y = 3.75, size = 3)+  
+  geom_vline(xintercept = 6, lty = 6) + 
+  annotate("text", label = "BMP treat", x = 6, y = 3.75, size = 3)+
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), 
+        axis.text.y=element_text(size=12),
+        axis.title.y=element_text(size=12),
+        axis.text.x=element_text(size=12),
+        axis.title.x=element_text(size=12),
+        legend.title = element_text(size=12),
+        legend.text = element_text(size=12),
+        legend.direction = "vertical",
+        legend.position = "none") + 
+  xlab("Experimental day")+ 
+  ggtitle(expression(italic("Pseudacris regilla")))
+
+p_reg
+```
+
+# Post-hoc comparison of the slopes of each treatment
+```{r, warning = FALSE, echo = FALSE}
+library(emmeans)
+lst = emmeans::lstrends(mod.lme, ~Treatment, var= "stand_day")
+slopes <- CLD(lst)
+slopes
+```
+
+# Trying to improve the fit
+
+We tried to include various correlation structure, but that didn't seem to improve the fit.
+
+## Model 2
+```{r echo = FALSE}
+mod.lme2 <- lme(log10(Bd_load + 1) ~ Treatment*stand_day, random= ~ 1|Frog_ID,correlation=corARMA(0.2, form=~stand_day|Frog_ID, p=1, q=0), data=dat)
+summary(mod.lme2)
+```
+
+# Post-hoc comparison of the slopes of each treatment
+```{r, warning = FALSE, echo = FALSE}
+library(emmeans)
+lst = emmeans::lstrends(mod.lme2, ~Treatment, var= "stand_day")
+slopes <- CLD(lst)
+slopes
+```
+
+## Model 3
+```{r echo = FALSE}
+mod.lme3 <- lme(log10(Bd_load + 1) ~ Treatment*stand_day, random= ~ 1|Frog_ID,correlation=corAR1(0.2,form=~stand_day|Frog_ID), data=dat)
+summary(mod.lme3)
+```
+
+# Post-hoc comparison of the slopes of each treatment
+```{r, warning = FALSE, echo = FALSE}
+library(emmeans)
+lst = emmeans::lstrends(mod.lme3, ~Treatment, var= "stand_day")
+slopes <- CLD(lst)
+slopes
+```
+
+## Make the joint plot from the manuscript
+
+```{r}
+
+library(cowplot)
+plot_grid(d_tinc, p_reg, labels = c("A", "B"))
+ggsave("Fig5.pdf", height = 5, width = 13)
+```
+
+## Applied vs. recovered BMP
+
+```{r}
+# Amount of BMP applied
+BMP <- c(15,
+10,
+25,
+100,
+25,
+35,
+30,
+10,
+25,
+2,
+20,
+7)
+
+# Amount of BMP recovered
+V_recovered <-
+c(6.445969125,
+  3.188679245,
+  3.938250429,
+  13.83876501,
+  7.27787307,
+  9.720411664,
+  4.701543739,
+  12.27272727,
+  7.312178388,
+  1.135506003,
+  10.36878216,
+  3.30703259)
+
+par(mar = c(5,7,5,5))
+plot(BMP, V_recovered, pch = 21, col = "black", bg = "skyblue3", las = 1, xlab = expression(paste("BMP-NTf2 applied (", mu, "L)")), ylab = "", cex.lab = 1.5, cex.axis= 1.5)
+abline(lm(V_recovered ~BMP), lwd = 4)
+abline(lm(V_recovered ~BMP), lwd = 3, col = "skyblue3")
+mtext(side = 2, line = 3, text= expression(paste("BMP-NTf2 recovered (", mu, "L)")), cex = 1.5)
+summary(lm(V_recovered ~BMP))
+```
+
+
+
+```{r}
+```
+
+```{r}
+```
