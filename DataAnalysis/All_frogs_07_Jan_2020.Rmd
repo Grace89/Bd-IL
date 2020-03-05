@@ -49,6 +49,32 @@ sd(df$Weight_g)/sqrt(length(df$Weight_g))
 df[df$Census == 1,]
 ```
 
+## Determine if D. tinc that died had higher Bd loads?
+
+```{r echo = FALSE, warning= FALSE}
+# Load data
+pre.dat <- read.csv("~/Dropbox/BDIL/Data/D_tinc/BdIL_AfterInoculation06Dec2017_sample1-124_corrected65-69.csv")
+dat2 <- read.csv("/Users/Cici/Dropbox/BDIL/Data/D_tinc/FINAL TREATMENTS/treatments_long_format.csv")
+
+# Subset BMP group
+BMP <- dat2[dat2$Treatment == "BMP",]
+BMP <- BMP[is.na(BMP$ID_Number)== FALSE,]
+
+# Id numbers that survived BMP application
+alive <- c(12, 22, 26, 33, 34, 94, 100, 123)
+# Id numbers that died immediately
+dead <- BMP$ID_Number[which(BMP$ID_Number %in% alive == FALSE)]
+
+# Bd load of alive individuals
+mean(pre.dat[pre.dat$Sample.Name %in% alive,]$zsp.per.swab)
+sd(pre.dat[pre.dat$Sample.Name %in% alive,]$zsp.per.swab)
+
+# Bd load of dead individuals
+mean(pre.dat[pre.dat$Sample.Name %in% dead,]$zsp.per.swab)
+sd(pre.dat[pre.dat$Sample.Name %in% dead,]$zsp.per.swab)
+
+```
+
 ## D. tinc Bd infection intensity over time by treatment
 
 ```{r echo = FALSE, warning= FALSE}
@@ -87,6 +113,9 @@ infeInte
 str(dat3)
 
 plot(log10(dat3[dat3$Exp_Day == 26,]$Bd+1))
+
+# Total number of days
+max(dat3$Exp_Day)-26
 
 library(ggplot2)
 ggplot(dat3,aes(y = log10(Bd+ 1), x = (Exp_Day-26))) +
@@ -325,6 +354,9 @@ phase <- numeric(nrow(dat))
 # Everything else is 2nd phase.
 phase <- ifelse(dat$Exp_day == "6" |dat$Exp_day == "9" | dat$Exp_day == "14" , 1, 2)
 
+# Determine the length of the experiment
+max(dat$Exp_day-6)
+
 library(ggplot2)
 
 ggplot(dat,
@@ -530,32 +562,32 @@ ggsave("Fig5.pdf", height = 5, width = 13)
 ```{r}
 # Amount of BMP applied
 BMP <- c(15,
-10,
-25,
-100,
-25,
-35,
-30,
-10,
-25,
-2,
-20,
-7)
+         10,
+         25,
+         100,
+         25,
+         35,
+         30,
+         10,
+         25,
+         2,
+         20,
+         7)
 
 # Amount of BMP recovered
 V_recovered <-
-c(6.445969125,
-  3.188679245,
-  3.938250429,
-  13.83876501,
-  7.27787307,
-  9.720411664,
-  4.701543739,
-  12.27272727,
-  7.312178388,
-  1.135506003,
-  10.36878216,
-  3.30703259)
+  c(6.445969125,
+    3.188679245,
+    3.938250429,
+    13.83876501,
+    7.27787307,
+    9.720411664,
+    4.701543739,
+    12.27272727,
+    7.312178388,
+    1.135506003,
+    10.36878216,
+    3.30703259)
 
 par(mar = c(5,7,5,5))
 plot(BMP, V_recovered, pch = 21, col = "black", bg = "skyblue3", las = 1, xlab = expression(paste("BMP-NTf2 applied (", mu, "L)")), ylab = "", cex.lab = 1.5, cex.axis= 1.5)
@@ -563,12 +595,19 @@ abline(lm(V_recovered ~BMP), lwd = 4)
 abline(lm(V_recovered ~BMP), lwd = 3, col = "skyblue3")
 mtext(side = 2, line = 3, text= expression(paste("BMP-NTf2 recovered (", mu, "L)")), cex = 1.5)
 summary(lm(V_recovered ~BMP))
-```
 
+# Average percent of BMP recovered
+mean(V_recovered/BMP)
+# SD percent of BMP recovered
+sd(V_recovered/BMP)
 
+# At 10 uL, how much will leach into the water?
+mod <- lm(V_recovered ~BMP)
+leached <- coef(mod)[1] + coef(mod)[2] * 10
+leached/10
 
-```{r}
-```
+# At 100 uL, how much will leach into the water?
+leached <- coef(mod)[1] + coef(mod)[2] * 100
+leached/100
 
-```{r}
 ```
